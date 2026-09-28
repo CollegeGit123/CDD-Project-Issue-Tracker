@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cdd-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cdd_tracker
+      POSTGRES_USER: cdd_user
+      POSTGRES_PASSWORD: cdd_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cdd-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cdd-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cdd_user:cdd_password@db:5432/cdd_tracker
+      SECRET_KEY: cdd-development-secret-key
+    depends_on:
+      - db
+    expose:
+      - "8000"
+    networks:
+      - cdd-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: frontend.Dockerfile
+    container_name: cdd-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - cdd-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: cdd-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - cdd-network
+
+volumes:
+  postgres_data:
+
+networks:
+  cdd-network:
+    driver: bridge

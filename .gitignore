@@ -1,0 +1,10 @@
+CDDvenv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+.terraform/
+*.tfstate
+*.tfstate.*
+node_modules/
+frontend/dist/
