@@ -1,9 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from .config import settings
-from .models.base import Base
-from .models.user import User
-from .models.project import Project
-from .models.ticket import Ticket
 
 engine = create_async_engine(
     settings.database_url,

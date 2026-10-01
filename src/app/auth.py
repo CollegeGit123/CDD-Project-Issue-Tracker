@@ -1,6 +1,6 @@
+import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
 
 from .config import settings
 

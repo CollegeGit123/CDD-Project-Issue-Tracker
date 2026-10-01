@@ -1,13 +1,15 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..config import settings
 from ..database import get_db
 from ..models.user import User
 from ..schemas.auth import UserLogin, UserRegister
-from ..config import settings
 
 router = APIRouter(
     prefix="/api/v1/auth",
@@ -76,7 +78,7 @@ async def login_user(
             detail="Invalid username or password",
         )
 
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 

@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from .database import engine
-from .routers.projects import router as projects_router
 from .routers.auth import router as auth_router
+from .routers.projects import router as projects_router
 from .routers.tickets import router as tickets_router
 
 app = FastAPI(
