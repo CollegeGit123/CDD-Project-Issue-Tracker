@@ -113,3 +113,45 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+
+  publish:
+    name: Push Images to ECR
+    needs:
+      - lint
+      - tests
+      - checkov
+      - docker
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::735452830611:role/GitHubActions-CDD-Deployment
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build backend image
+      run: |
+        docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_BACKEND_REPOSITORY }}:${{ github.sha }} .
+
+    - name: Build frontend image
+      run: |
+        docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }} -f frontend/frontend.Dockerfile frontend
+
+    - name: Push backend image
+      run: |
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_BACKEND_REPOSITORY }}:${{ github.sha }}
+
+    - name: Push frontend image
+      run: |
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }}
