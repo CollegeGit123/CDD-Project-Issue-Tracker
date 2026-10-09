@@ -36,6 +36,11 @@ function App() {
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerUsername, setRegisterUsername] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+
   const loadDashboard = async () => {
     try {
       const headers = {
@@ -95,6 +100,35 @@ function App() {
     }
   };
 
+  const handleRegister = async (event) => {
+    event.preventDefault();
+
+    try {
+      await axios.post(
+        `${API_URL}/api/v1/auth/register`,
+        {
+          username: registerUsername,
+          email: registerEmail,
+          password: registerPassword,
+        }
+      );
+
+      alert("Account created successfully! You can now sign in.");
+
+      setLoginUsername(registerUsername);
+      setLoginPassword("");
+      setRegisterUsername("");
+      setRegisterEmail("");
+      setRegisterPassword("");
+      setIsRegistering(false);
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+          "Registration failed. Please try again."
+      );
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     setToken(null);
@@ -111,31 +145,72 @@ function App() {
     (ticket) => ticket.priority === "high"
   );
 
-  if (!token) {
-    return (
-      <div className="app">
-        <div className="login-card">
-          <div className="brand">
-            <div className="brand-icon">
-              <BarChart3 size={22} />
-            </div>
-
-            <div>
-              <h1>IssueFlow</h1>
-              <p>Issue Tracking Platform</p>
-            </div>
+    if (!token) {
+      return (
+    <div className="app">
+      <div className="login-card">
+        <div className="brand">
+          <div className="brand-icon">
+            <BarChart3 size={22} />
           </div>
 
-          <div className="welcome">
-            <h2>Welcome back</h2>
-            <p>
-              Sign in to manage your projects and tickets.
-            </p>
+          <div>
+            <h1>IssueFlow</h1>
+            <p>Issue Tracking Platform</p>
           </div>
+        </div>
 
+        <div className="welcome">
+          <h2>{isRegistering ? "Create your account" : "Welcome back"}</h2>
+          <p>
+            {isRegistering
+              ? "Register to start managing projects and tickets."
+              : "Sign in to manage your projects and tickets."}
+          </p>
+        </div>
+
+        {isRegistering ? (
+          <form onSubmit={handleRegister}>
+            <label>Username</label>
+            <input
+              type="text"
+              placeholder="Choose a username"
+              value={registerUsername}
+              onChange={(event) =>
+                setRegisterUsername(event.target.value)
+              }
+              maxLength={50}
+              required
+            />
+
+            <label>Email</label>
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={registerEmail}
+              onChange={(event) =>
+                setRegisterEmail(event.target.value)
+              }
+              required
+            />
+
+            <label>Password</label>
+            <input
+              type="password"
+              placeholder="Create a password"
+              value={registerPassword}
+              onChange={(event) =>
+                setRegisterPassword(event.target.value)
+              }
+              minLength={8}
+              required
+            />
+
+            <button type="submit">Create Account</button>
+          </form>
+        ) : (
           <form onSubmit={handleLogin}>
             <label>Username</label>
-
             <input
               type="text"
               placeholder="Enter your username"
@@ -147,7 +222,6 @@ function App() {
             />
 
             <label>Password</label>
-
             <input
               type="password"
               placeholder="Enter your password"
@@ -158,16 +232,36 @@ function App() {
               required
             />
 
-            <button type="submit">
-              Sign in
-            </button>
+            <button type="submit">Sign in</button>
           </form>
+        )}
 
-          <p className="footer-text">
-            CDD Issue Tracker · Secure workspace
-          </p>
-        </div>
+        <p style={{ textAlign: "center", marginTop: "18px" }}>
+          {isRegistering
+            ? "Already have an account?"
+            : "Don't have an account?"}{" "}
+          <button
+            type="button"
+            onClick={() => setIsRegistering(!isRegistering)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "inherit",
+              textDecoration: "underline",
+              cursor: "pointer",
+              font: "inherit",
+              padding: 0,
+            }}
+          >
+            {isRegistering ? "Sign in" : "Create account"}
+          </button>
+        </p>
+
+        <p className="footer-text">
+          CDD Issue Tracker · Secure workspace
+        </p>
       </div>
+    </div>
     );
   }
 
