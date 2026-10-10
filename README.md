@@ -63,10 +63,16 @@ GitHub Actions automates code validation, testing, security scanning, container 
 ## Project Structure
 
 ```text
-CDD Project/
+CDD-Project-Issue-Tracker/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+├── docker/
+│   └── nginx.conf
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   └── frontend.Dockerfile
 ├── migrations/
 │   └── versions/
 ├── src/
@@ -76,13 +82,15 @@ CDD Project/
 │       ├── schemas/
 │       ├── auth.py
 │       └── main.py
-├── frontend/
-├── terraform/
 ├── tests/
+├── terraform/
+├── .env.example
+├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
 ├── alembic.ini
 ├── pyproject.toml
+├── requirements.txt
 └── README.md
 
 ## Prerequisites
@@ -96,6 +104,13 @@ Ensure the following tools are installed:
 
 ## Local Setup
 
+### Prerequisites
+
+- Git
+- Python 3.11 or compatible version
+- Node.js and npm
+- Docker Desktop with Docker Compose
+
 ### 1. Clone the Repository
 
 ```bash
@@ -103,50 +118,253 @@ git clone https://github.com/CollegeGit123/CDD-Project-Issue-Tracker.git
 cd CDD-Project-Issue-Tracker
 ```
 
-### 2. Configure the Backend
+### 2. Start the Application
 
-Create and activate a virtual environment.
+From the project root, run:
 
-**Windows PowerShell:**
+```bash
+docker compose up --build -d
+```
+
+This builds the application images and starts PostgreSQL, the FastAPI backend, the React frontend, and Nginx.
+
+### 3. Access the Application
+
+Open the following URLs in your browser:
+
+- **Application:** http://localhost
+- **API Documentation:** http://localhost/docs
+- **Health Check:** http://localhost/health
+
+### 4. Check Container Status
+
+```bash
+docker compose ps
+```
+
+### 5. View Application Logs
+
+```bash
+docker compose logs -f
+```
+
+Press `Ctrl + C` to stop following the logs.
+
+### 6. Stop the Application
+
+```bash
+docker compose down
+```
+
+This stops and removes the containers while preserving the database volume.
+
+To remove the database volume and its stored data as well:
+
+```bash
+docker compose down -v
+```
+
+**Warning:** The `-v` option permanently removes the Compose-managed database volume and its data.
+
+## Backend Development
+
+### Create a Virtual Environment
+
+On Windows PowerShell:
 
 ```powershell
 python -m venv CDDvenv
 .\CDDvenv\Scripts\Activate.ps1
 ```
 
-Install the backend dependencies according to the project's dependency configuration.
+### Install Dependencies
 
-### 3. Configure Environment Variables
+```powershell
+pip install -r requirements.txt
+```
 
-Configure the required environment variables for database connectivity and JWT authentication.
+### Apply Database Migrations
 
-Do not commit real credentials, database passwords, or JWT secrets to GitHub.
+Configure `DATABASE_URL` to point to a running PostgreSQL database, then execute:
 
-### 4. Apply Database Migrations
-
-After configuring the database connection, apply the migrations:
-
-```bash
+```powershell
 alembic upgrade head
 ```
 
-### 5. Run the Backend
+### Run the Backend
 
-Start the FastAPI application using the project's configured entry point.
-
-API documentation is available at:
-
-`http://127.0.0.1:8000/docs`
-
-### 6. Run the Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
+```powershell
+uvicorn app.main:app --reload --app-dir src
 ```
 
-Vite will display the frontend address in the terminal.
+### Run Tests
+
+```powershell
+pytest
+```
+
+### Run Code Quality Checks
+
+```powershell
+ruff check .
+```
+
+## Backend Development
+
+### Create a Virtual Environment
+
+On Windows PowerShell:
+
+```powershell
+python -m venv CDDvenv
+.\CDDvenv\Scripts\Activate.ps1
+```
+
+### Install Dependencies
+
+```powershell
+pip install -r requirements.txt
+```
+
+### Run Database Migrations
+
+Ensure PostgreSQL is running and the `DATABASE_URL` environment variable points to the correct database.
+
+Apply migrations:
+
+```powershell
+alembic upgrade head
+```
+
+### Run the Backend
+
+```powershell
+uvicorn app.main:app --reload --app-dir src
+```
+
+### Run Tests
+
+```powershell
+pytest
+```
+
+### Run Ruff
+
+```powershell
+ruff check .
+```
+
+## Environment Variables
+
+The backend uses environment variables to configure database connectivity and authentication.
+
+| Variable | Description | Example |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://user:password@localhost:5432/database` |
+| `SECRET_KEY` | Secret key used for authentication token security | Set a strong, private value |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration duration, if configured | Refer to the application configuration |
+
+### Docker Configuration
+
+The provided `docker-compose.yml` defines the following development settings:
+
+- **Database:** PostgreSQL 16
+- **Database name:** `cdd_tracker`
+- **Database user:** `cdd_user`
+- **Database port:** `5433` on the host
+- **Backend port:** `8000` internally
+- **Frontend port:** `80` internally
+- **Application access:** Port `80` through Nginx
+
+The Compose configuration uses development credentials. Replace them with secure values before deploying to a production environment.
+
+**Security:** Never commit production credentials, JWT secrets, AWS access keys, or private configuration files to GitHub.
+
+## Features
+
+### Authentication
+- User registration and login.
+- JWT-based authentication for protected API endpoints.
+
+### Project Management
+- Create and view projects.
+- Project owners can manage project membership.
+- Add existing registered users to projects using their usernames.
+
+### Role-Based Access Control
+
+| Role | Permissions |
+|---|---|
+| Owner | Manage project membership and perform project operations |
+| Developer | View projects, create tickets, and update ticket statuses |
+| Viewer | Read-only project and ticket access |
+
+### Ticket Management
+- Create tickets within projects.
+- View tickets belonging to accessible projects.
+- Update ticket status.
+- Supported statuses: `open`, `in_progress`, and `closed`.
+
+### Database Management
+- PostgreSQL for persistent storage.
+- SQLAlchemy for database access.
+- Alembic for database schema migrations.
+
+### Containerization
+- Docker containers for the application services.
+- Docker Compose for service orchestration.
+- Nginx reverse proxy for frontend and API routing.
+
+### Automated DevSecOps Pipeline
+- Python linting with Ruff.
+- Automated tests with Pytest.
+- Infrastructure security scanning with Checkov.
+- Container vulnerability scanning with Trivy.
+- Docker image publishing to Amazon ECR.
+- Automated deployment to Amazon EC2 through AWS Systems Manager.
+
+### Cloud Monitoring
+- CloudWatch CPU utilization alarm.
+- CloudWatch memory and disk usage metrics.
+- CloudTrail management-event history.
+
+## Testing and Verification
+
+The project uses automated testing and security checks to validate application quality before deployment.
+
+### Automated Testing
+
+- **Pytest:** Runs backend tests.
+- **PostgreSQL:** Provides the database service for integration tests.
+- **Ruff:** Checks Python code for linting issues.
+
+Run the tests locally:
+
+```bash
+pytest
+```
+
+Run linting:
+
+```bash
+ruff check .
+```
+
+### Security Scanning
+
+- **Checkov:** Scans Terraform configuration for infrastructure security issues.
+- **Trivy:** Scans container images for vulnerabilities.
+
+### Deployment Verification
+
+After deployment, verify that:
+
+- The application loads through the Nginx reverse proxy.
+- Authentication works.
+- Project membership permissions are enforced.
+- Tickets can be created and their statuses updated.
+- The backend health endpoint reports a healthy database connection.
+- The GitHub Actions workflow completes successfully.
 
 ## Security
 
@@ -334,17 +552,6 @@ The OpenAPI schema is available at:
 
 Authenticated endpoints use JWT-based authentication.
 
-## Testing
-
-The project uses Pytest to run automated backend tests.
-
-The CI pipeline runs tests against PostgreSQL to validate application behavior and database integration.
-
-Run the tests locally from the project root:
-
-```bash
-pytest
-```
 
 ## Security
 
