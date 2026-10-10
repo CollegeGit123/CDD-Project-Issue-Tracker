@@ -1,26 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+﻿from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
 from ..database import get_db
 from ..models.project import Project
+from ..models.project_member import ProjectMember
 from ..models.ticket import Ticket
 from ..models.user import User
 from ..schemas.ticket import TicketCreate
+from .projects import get_project_access
 
-router = APIRouter(
-    prefix="/api/v1/tickets",
-    tags=["tickets"],
-)
+router = APIRouter(prefix="/api/v1/tickets", tags=["tickets"])
 
 
 @router.get("/")
 async def list_tickets(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Ticket))
+    result = await db.execute(
+        select(Ticket)
+        .join(Project, Ticket.project_id == Project.id)
+        .outerjoin(ProjectMember, ProjectMember.project_id == Project.id)
+        .where(
+            or_(
+                Project.owner_id == current_user.id,
+                ProjectMember.user_id == current_user.id,
+            )
+        )
+        .distinct()
+        .order_by(Ticket.id)
+    )
     return result.scalars().all()
 
 
@@ -28,26 +39,15 @@ async def list_tickets(
 async def create_ticket(
     ticket_data: TicketCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    project_result = await db.execute(
-        select(Project).where(Project.id == ticket_data.project_id)
+    _, role = await get_project_access(
+        ticket_data.project_id, current_user, db
     )
-
-    if project_result.scalar_one_or_none() is None:
+    if role not in ("owner", "developer"):
         raise HTTPException(
-            status_code=404,
-            detail="Project not found",
-        )
-
-    user_result = await db.execute(
-        select(User).where(User.id == ticket_data.created_by)
-    )
-
-    if user_result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
+            status_code=403,
+            detail="Only owners and developers can create tickets",
         )
 
     ticket = Ticket(
@@ -56,11 +56,41 @@ async def create_ticket(
         status=ticket_data.status,
         priority=ticket_data.priority,
         project_id=ticket_data.project_id,
-        created_by=ticket_data.created_by,
+        created_by=current_user.id,
     )
-
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
+    return ticket
 
+
+@router.patch("/{ticket_id}/status")
+async def update_ticket_status(
+    ticket_id: int,
+    status: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if status not in ("open", "in_progress", "closed"):
+        raise HTTPException(status_code=422, detail="Invalid ticket status")
+
+    result = await db.execute(
+        select(Ticket).where(Ticket.id == ticket_id)
+    )
+    ticket = result.scalar_one_or_none()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    _, role = await get_project_access(
+        ticket.project_id, current_user, db
+    )
+    if role not in ("owner", "developer"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and developers can update ticket status",
+        )
+
+    ticket.status = status
+    await db.commit()
+    await db.refresh(ticket)
     return ticket

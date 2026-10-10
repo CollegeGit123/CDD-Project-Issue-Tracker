@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import axios from "axios";
 import {
   BarChart3,
@@ -7,10 +7,13 @@ import {
   LogOut,
   Activity,
   Plus,
+  Users,
+  X,
 } from "lucide-react";
+
 import "./App.css";
 
-const API_URL = "";
+const API_URL = "http://127.0.0.1:8000";
 
 function App() {
   const [token, setToken] = useState(
@@ -32,6 +35,12 @@ function App() {
   const [ticketStatus, setTicketStatus] = useState("open");
   const [ticketSearch, setTicketSearch] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [memberUsername, setMemberUsername] = useState("");
+  const [memberRole, setMemberRole] = useState("developer");
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [projectRoles, setProjectRoles] = useState({});
 
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -54,6 +63,33 @@ function App() {
 
       setProjects(projectsResponse.data);
       setTickets(ticketsResponse.data);
+
+      const roleEntries = await Promise.all(
+        projectsResponse.data.map(async (project) => {
+          try {
+            const response = await axios.get(
+              `${API_URL}/api/v1/projects/${project.id}/members`,
+              { headers }
+            );
+
+            const members = response.data;
+            const currentUsername = JSON.parse(
+              atob(token.split(".")[1])
+            ).username;
+
+            const currentMember = [
+              members.owner,
+              ...members.members,
+            ].find((member) => member.username === currentUsername);
+
+            return [project.id, currentMember?.role || "viewer"];
+          } catch {
+            return [project.id, "viewer"];
+          }
+        })
+      );
+
+      setProjectRoles(Object.fromEntries(roleEntries));
 
       setApiStatus("Healthy");
 
@@ -95,7 +131,7 @@ function App() {
     } catch (error) {
       alert(
         error.response?.data?.detail ||
-          "Login failed. Please check your credentials."
+        "Login failed. Please check your credentials."
       );
     }
   };
@@ -124,7 +160,7 @@ function App() {
     } catch (error) {
       alert(
         error.response?.data?.detail ||
-          "Registration failed. Please try again."
+        "Registration failed. Please try again."
       );
     }
   };
@@ -137,6 +173,133 @@ function App() {
     setUsername("");
   };
 
+
+  const loadProjectMembers = async (project) => {
+    setSelectedProject(project);
+    setLoadingMembers(true);
+    setProjectMembers([]);
+
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/v1/projects/${project.id}/members`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setProjectMembers([
+        response.data.owner,
+        ...response.data.members,
+      ]);
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+        "Failed to load project members."
+      );
+      setSelectedProject(null);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const updateTicketStatus = async (ticketId, status) => {
+    try {
+      await axios.patch(
+        `${API_URL}/api/v1/tickets/${ticketId}/status`,
+        null,
+        {
+          params: { status },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await loadDashboard();
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+        "Failed to update ticket status."
+      );
+    }
+  };
+
+
+  const addProjectMember = async (event) => {
+    event.preventDefault();
+
+    try {
+      await axios.post(
+        `${API_URL}/api/v1/projects/${selectedProject.id}/members`,
+        {
+          username: memberUsername.trim(),
+          role: memberRole,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setMemberUsername("");
+      await loadProjectMembers(selectedProject);
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+        "Failed to add project member."
+      );
+    }
+  };
+
+  const updateMemberRole = async (member, role) => {
+    try {
+      await axios.patch(
+        `${API_URL}/api/v1/projects/${selectedProject.id}/members/${member.user_id}`,
+        { role },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await loadProjectMembers(selectedProject);
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+        "Failed to update member role."
+      );
+    }
+  };
+
+  const removeProjectMember = async (member) => {
+    if (!window.confirm(`Remove ${member.username} from this project?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(
+        `${API_URL}/api/v1/projects/${selectedProject.id}/members/${member.user_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await loadProjectMembers(selectedProject);
+    } catch (error) {
+      alert(
+        error.response?.data?.detail ||
+        "Failed to remove project member."
+      );
+    }
+  };
+
+
   const openTickets = tickets.filter(
     (ticket) => ticket.status === "open"
   );
@@ -145,123 +308,123 @@ function App() {
     (ticket) => ticket.priority === "high"
   );
 
-    if (!token) {
-      return (
-    <div className="app">
-      <div className="login-card">
-        <div className="brand">
-          <div className="brand-icon">
-            <BarChart3 size={22} />
+  if (!token) {
+    return (
+      <div className="app">
+        <div className="login-card">
+          <div className="brand">
+            <div className="brand-icon">
+              <BarChart3 size={22} />
+            </div>
+
+            <div>
+              <h1>IssueFlow</h1>
+              <p>Issue Tracking Platform</p>
+            </div>
           </div>
 
-          <div>
-            <h1>IssueFlow</h1>
-            <p>Issue Tracking Platform</p>
+          <div className="welcome">
+            <h2>{isRegistering ? "Create your account" : "Welcome back"}</h2>
+            <p>
+              {isRegistering
+                ? "Register to start managing projects and tickets."
+                : "Sign in to manage your projects and tickets."}
+            </p>
           </div>
-        </div>
 
-        <div className="welcome">
-          <h2>{isRegistering ? "Create your account" : "Welcome back"}</h2>
-          <p>
+          {isRegistering ? (
+            <form onSubmit={handleRegister}>
+              <label>Username</label>
+              <input
+                type="text"
+                placeholder="Choose a username"
+                value={registerUsername}
+                onChange={(event) =>
+                  setRegisterUsername(event.target.value)
+                }
+                maxLength={50}
+                required
+              />
+
+              <label>Email</label>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={registerEmail}
+                onChange={(event) =>
+                  setRegisterEmail(event.target.value)
+                }
+                required
+              />
+
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="Create a password"
+                value={registerPassword}
+                onChange={(event) =>
+                  setRegisterPassword(event.target.value)
+                }
+                minLength={8}
+                required
+              />
+
+              <button type="submit">Create Account</button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin}>
+              <label>Username</label>
+              <input
+                type="text"
+                placeholder="Enter your username"
+                value={loginUsername}
+                onChange={(event) =>
+                  setLoginUsername(event.target.value)
+                }
+                required
+              />
+
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={loginPassword}
+                onChange={(event) =>
+                  setLoginPassword(event.target.value)
+                }
+                required
+              />
+
+              <button type="submit">Sign in</button>
+            </form>
+          )}
+
+          <p style={{ textAlign: "center", marginTop: "18px" }}>
             {isRegistering
-              ? "Register to start managing projects and tickets."
-              : "Sign in to manage your projects and tickets."}
+              ? "Already have an account?"
+              : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => setIsRegistering(!isRegistering)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "inherit",
+                textDecoration: "underline",
+                cursor: "pointer",
+                font: "inherit",
+                padding: 0,
+              }}
+            >
+              {isRegistering ? "Sign in" : "Create account"}
+            </button>
+          </p>
+
+          <p className="footer-text">
+            CDD Issue Tracker Â· Secure workspace
           </p>
         </div>
-
-        {isRegistering ? (
-          <form onSubmit={handleRegister}>
-            <label>Username</label>
-            <input
-              type="text"
-              placeholder="Choose a username"
-              value={registerUsername}
-              onChange={(event) =>
-                setRegisterUsername(event.target.value)
-              }
-              maxLength={50}
-              required
-            />
-
-            <label>Email</label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={registerEmail}
-              onChange={(event) =>
-                setRegisterEmail(event.target.value)
-              }
-              required
-            />
-
-            <label>Password</label>
-            <input
-              type="password"
-              placeholder="Create a password"
-              value={registerPassword}
-              onChange={(event) =>
-                setRegisterPassword(event.target.value)
-              }
-              minLength={8}
-              required
-            />
-
-            <button type="submit">Create Account</button>
-          </form>
-        ) : (
-          <form onSubmit={handleLogin}>
-            <label>Username</label>
-            <input
-              type="text"
-              placeholder="Enter your username"
-              value={loginUsername}
-              onChange={(event) =>
-                setLoginUsername(event.target.value)
-              }
-              required
-            />
-
-            <label>Password</label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={loginPassword}
-              onChange={(event) =>
-                setLoginPassword(event.target.value)
-              }
-              required
-            />
-
-            <button type="submit">Sign in</button>
-          </form>
-        )}
-
-        <p style={{ textAlign: "center", marginTop: "18px" }}>
-          {isRegistering
-            ? "Already have an account?"
-            : "Don't have an account?"}{" "}
-          <button
-            type="button"
-            onClick={() => setIsRegistering(!isRegistering)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "inherit",
-              textDecoration: "underline",
-              cursor: "pointer",
-              font: "inherit",
-              padding: 0,
-            }}
-          >
-            {isRegistering ? "Sign in" : "Create account"}
-          </button>
-        </p>
-
-        <p className="footer-text">
-          CDD Issue Tracker · Secure workspace
-        </p>
       </div>
-    </div>
     );
   }
 
@@ -280,36 +443,33 @@ function App() {
         </div>
 
         <nav>
-        <button
-          className={`nav-item ${
-            activePage === "dashboard" ? "active" : ""
-          }`}
-          onClick={() => setActivePage("dashboard")}
-        >
-          <BarChart3 size={18} />
-          Dashboard
-        </button>
+          <button
+            className={`nav-item ${activePage === "dashboard" ? "active" : ""
+              }`}
+            onClick={() => setActivePage("dashboard")}
+          >
+            <BarChart3 size={18} />
+            Dashboard
+          </button>
 
-        <button
-          className={`nav-item ${
-            activePage === "projects" ? "active" : ""
-          }`}
-          onClick={() => setActivePage("projects")}
-        >
-          <FolderKanban size={18} />
-          Projects
-        </button>
+          <button
+            className={`nav-item ${activePage === "projects" ? "active" : ""
+              }`}
+            onClick={() => setActivePage("projects")}
+          >
+            <FolderKanban size={18} />
+            Projects
+          </button>
 
-        <button
-          className={`nav-item ${
-            activePage === "tickets" ? "active" : ""
-          }`}
-          onClick={() => setActivePage("tickets")}
-        >
-          <Ticket size={18} />
-          Tickets
-        </button>
-         </nav>
+          <button
+            className={`nav-item ${activePage === "tickets" ? "active" : ""
+              }`}
+            onClick={() => setActivePage("tickets")}
+          >
+            <Ticket size={18} />
+            Tickets
+          </button>
+        </nav>
 
         <button
           className="logout-button"
@@ -320,7 +480,7 @@ function App() {
         </button>
       </aside>
 
-            <main className="main-content">
+      <main className="main-content">
         {activePage === "projects" ? (
           <section className="page-section">
             <div className="topbar">
@@ -328,9 +488,9 @@ function App() {
                 <h1>Projects</h1>
                 <p>Manage your issue-tracking projects.</p>
                 <span className="page-count">
-                {projects.length}{" "}
-                {projects.length === 1 ? "project" : "projects"}
-              </span>
+                  {projects.length}{" "}
+                  {projects.length === 1 ? "project" : "projects"}
+                </span>
               </div>
 
               <button
@@ -342,87 +502,86 @@ function App() {
               </button>
             </div>
 
-             {showProjectForm && (
-            <div className="panel project-form-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>New Project</h2>
-                  <p>Create a project for your workspace.</p>
+            {showProjectForm && (
+              <div className="panel project-form-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>New Project</h2>
+                    <p>Create a project for your workspace.</p>
+                  </div>
                 </div>
-              </div>
 
-              <form
-                onSubmit={async (event) => {
-                  event.preventDefault();
+                <form
+                  onSubmit={async (event) => {
+                    event.preventDefault();
 
-                  try {
-                    await axios.post(
-                      `${API_URL}/api/v1/projects/`,
-                      {
-                        name: projectName,
-                        description: projectDescription,
-                        owner_id: 4,
-                      },
-                      {
-                        headers: {
-                          Authorization: `Bearer ${token}`,
+                    try {
+                      await axios.post(
+                        `${API_URL}/api/v1/projects/`,
+                        {
+                          name: projectName,
+                          description: projectDescription,
                         },
-                      }
-                    );
+                        {
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                        }
+                      );
 
-                    setProjectName("");
-                    setProjectDescription("");
-                    setShowProjectForm(false);
+                      setProjectName("");
+                      setProjectDescription("");
+                      setShowProjectForm(false);
 
-                    await loadDashboard();
-                  } catch (error) {
-                    alert(
-                      error.response?.data?.detail ||
+                      await loadDashboard();
+                    } catch (error) {
+                      alert(
+                        error.response?.data?.detail ||
                         "Failed to create project."
-                    );
-                  }
-                }}
-              >
-                <label>Project Name</label>
+                      );
+                    }
+                  }}
+                >
+                  <label>Project Name</label>
 
-                <input
-                  type="text"
-                  placeholder="Enter project name"
-                  value={projectName}
-                  onChange={(event) =>
-                    setProjectName(event.target.value)
-                  }
-                  required
-                />
+                  <input
+                    type="text"
+                    placeholder="Enter project name"
+                    value={projectName}
+                    onChange={(event) =>
+                      setProjectName(event.target.value)
+                    }
+                    required
+                  />
 
-                <label>Description</label>
+                  <label>Description</label>
 
-                <textarea
-                  placeholder="Enter project description"
-                  value={projectDescription}
-                  onChange={(event) =>
-                    setProjectDescription(event.target.value)
-                  }
-                  rows="4"
-                />
+                  <textarea
+                    placeholder="Enter project description"
+                    value={projectDescription}
+                    onChange={(event) =>
+                      setProjectDescription(event.target.value)
+                    }
+                    rows="4"
+                  />
 
-                <div className="form-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => setShowProjectForm(false)}
-                  >
-                    Cancel
-                  </button>
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setShowProjectForm(false)}
+                    >
+                      Cancel
+                    </button>
 
-                  <button type="submit" className="small-button">
-                    Create Project
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-          <div className="project-search">
+                    <button type="submit" className="small-button">
+                      Create Project
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+            <div className="project-search">
               <input
                 type="text"
                 placeholder="Search projects..."
@@ -442,282 +601,405 @@ function App() {
               )}
             </div>
 
+
+            {selectedProject && (
+              <div className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Project Members</h2>
+                    <p>{selectedProject.name}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setSelectedProject(null)}
+                  >
+                    <X size={16} />
+                    Close
+                  </button>
+                </div>
+
+                {loadingMembers ? (
+                  <p>Loading members...</p>
+                ) : (
+                  <>
+                    <div className="ticket-list">
+                      {projectMembers.map((member) => (
+                        <div className="member-row" key={member.user_id}>
+                          <div className="member-info">
+                            <strong>{member.username}</strong>
+                            <span>{member.email}</span>
+                          </div>
+
+                          <div className="member-actions">
+                            <span className={`member-role ${member.role}`}>
+                              {member.role}
+                            </span>
+
+                            {projectRoles[selectedProject.id] === "owner" &&
+                              member.role !== "owner" && (
+                                <>
+                                  <select
+                                    className="member-role-select"
+                                    value={member.role}
+                                    onChange={(event) =>
+                                      updateMemberRole(member, event.target.value)
+                                    }
+                                  >
+                                    <option value="developer">Developer</option>
+                                    <option value="viewer">Viewer</option>
+                                  </select>
+
+                                  <button
+                                    type="button"
+                                    className="secondary-button member-remove-button"
+                                    onClick={() => removeProjectMember(member)}
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {projectRoles[selectedProject.id] === "owner" && (
+
+                      <form className="member-form" onSubmit={addProjectMember}>
+                        <div className="member-form-field">
+                          <label>Username of registered user</label>
+                          <input
+                            value={memberUsername}
+                            onChange={(event) => setMemberUsername(event.target.value)}
+                            placeholder="Enter username"
+                            required
+                          />
+                        </div>
+
+                        <div className="member-form-field">
+                          <label>Role</label>
+                          <select
+                            value={memberRole}
+                            onChange={(event) => setMemberRole(event.target.value)}
+                          >
+                            <option value="developer">Developer</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                        </div>
+
+                        <button type="submit" className="small-button">
+                          <Plus size={16} />
+                          Add Member
+                        </button>
+                      </form>
+
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+
             <div className="projects-grid">
               {projects.filter((project) =>
-                  project.name
-                    .toLowerCase()
-                    .includes(projectSearch.toLowerCase())
-                ).length === 0 ? (
-                  <div className="empty-state">
-                    <FolderKanban size={30} />
-                    <p>
-                      {projectSearch
-                        ? "No matching projects."
-                        : "No projects yet."}
-                    </p>
-                  </div>
-                ) : (
-                  projects
-                    .filter((project) =>
-                      project.name
-                        .toLowerCase()
-                        .includes(projectSearch.toLowerCase())
-                    )
-                    .map((project) => (
-                  <div className="project-card" key={project.id}>
-                    <div className="project-icon">
-                      <FolderKanban size={20} />
-                    </div>
+                project.name
+                  .toLowerCase()
+                  .includes(projectSearch.toLowerCase())
+              ).length === 0 ? (
+                <div className="empty-state">
+                  <FolderKanban size={30} />
+                  <p>
+                    {projectSearch
+                      ? "No matching projects."
+                      : "No projects yet."}
+                  </p>
+                </div>
+              ) : (
+                projects
+                  .filter((project) =>
+                    project.name
+                      .toLowerCase()
+                      .includes(projectSearch.toLowerCase())
+                  )
+                  .map((project) => (
+                    <div className="project-card" key={project.id}>
+                      <div className="project-icon">
+                        <FolderKanban size={20} />
+                      </div>
 
-                    <div>
-                      <h2>{project.name}</h2>
-                      <p>
-                        {project.description ||
-                          "No description provided."}
-                      </p>
-                    </div>
+                      <div>
+                        <h2>{project.name}</h2>
+                        <p>
+                          {project.description ||
+                            "No description provided."}
+                        </p>
+                      </div>
 
-                    <span>Project #{project.id}</span>
-                  </div>
-                ))
+
+                      <div className="ticket-meta">
+                        <span>Project #{project.id}</span>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => loadProjectMembers(project)}
+                        >
+                          <Users size={16} />
+                          Members
+                        </button>
+                      </div>
+
+                    </div>
+                  ))
               )}
             </div>
           </section>
         ) : activePage === "tickets" ? (
-  <section className="page-section">
-    <div className="topbar">
-      <div>
-        <h1>Tickets</h1>
-        <p>Track and manage project issues.</p>
-        <span className="page-count">
-          {tickets.length}{" "}
-          {tickets.length === 1 ? "ticket" : "tickets"}
-        </span>
-      </div>
-
-      <button
-        className="small-button"
-        onClick={() => setShowTicketForm(true)}
-      >
-        <Plus size={16} />
-        New Ticket
-      </button>
-    </div>
-
-    <div className="panel">
-      <div className="ticket-search">
-        <input
-          type="text"
-          placeholder="Search tickets..."
-          value={ticketSearch}
-          onChange={(event) =>
-            setTicketSearch(event.target.value)
-          }
-        />
-
-        {ticketSearch && (
-          <button
-            className="clear-search"
-            onClick={() => setTicketSearch("")}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {showTicketForm && (
-        <div className="ticket-form">
-          <div className="panel-header">
-            <div>
-              <h2>New Ticket</h2>
-              <p>Create a new issue for a project.</p>
-            </div>
-          </div>
-
-          <form
-            onSubmit={async (event) => {
-              event.preventDefault();
-
-              try {
-                await axios.post(
-                  `${API_URL}/api/v1/tickets/`,
-                  {
-                    title: ticketTitle,
-                    description: ticketDescription,
-                    project_id: Number(ticketProjectId),
-                    created_by: 4,
-                    status: ticketStatus,
-                    priority: ticketPriority,
-                  },
-                  {
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  }
-                );
-
-                setTicketTitle("");
-                setTicketDescription("");
-                setTicketProjectId("");
-                setTicketPriority("medium");
-                setTicketStatus("open");
-                setShowTicketForm(false);
-
-                await loadDashboard();
-              } catch (error) {
-                alert(
-                  error.response?.data?.detail ||
-                    "Failed to create ticket."
-                );
-              }
-            }}
-          >
-            <label>Ticket Title</label>
-
-            <input
-              type="text"
-              placeholder="Enter ticket title"
-              value={ticketTitle}
-              onChange={(event) =>
-                setTicketTitle(event.target.value)
-              }
-              required
-            />
-
-            <label>Project</label>
-
-            <select
-              value={ticketProjectId}
-              onChange={(event) =>
-                setTicketProjectId(event.target.value)
-              }
-              required
-            >
-              <option value="">Select a project</option>
-
-              {projects.map((project) => (
-                <option
-                  key={project.id}
-                  value={project.id}
-                >
-                  {project.name}
-                </option>
-              ))}
-            </select>
-
-            <label>Priority</label>
-
-            <select
-              value={ticketPriority}
-              onChange={(event) =>
-                setTicketPriority(event.target.value)
-              }
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-
-            <label>Status</label>
-
-            <select
-              value={ticketStatus}
-              onChange={(event) =>
-                setTicketStatus(event.target.value)
-              }
-            >
-              <option value="open">Open</option>
-              <option value="in_progress">
-                In Progress
-              </option>
-              <option value="closed">Closed</option>
-            </select>
-
-            <label>Description</label>
-
-            <textarea
-              placeholder="Describe the issue"
-              value={ticketDescription}
-              onChange={(event) =>
-                setTicketDescription(event.target.value)
-              }
-              rows="4"
-            />
-
-            <div className="form-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowTicketForm(false)}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="small-button"
-              >
-                Create Ticket
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {tickets.filter((ticket) =>
-        ticket.title
-          .toLowerCase()
-          .includes(ticketSearch.toLowerCase())
-      ).length === 0 ? (
-        <div className="empty-state">
-          <Ticket size={30} />
-          <p>
-            {ticketSearch
-              ? "No matching tickets."
-              : "No tickets yet."}
-          </p>
-        </div>
-      ) : (
-        <div className="ticket-list">
-          {tickets
-            .filter((ticket) =>
-              ticket.title
-                .toLowerCase()
-                .includes(ticketSearch.toLowerCase())
-            )
-            .map((ticket) => (
-              <div
-                className="ticket-row"
-                key={ticket.id}
-              >
-                <div>
-                  <strong>{ticket.title}</strong>
-                  <span>
-                    Project #{ticket.project_id}
-                  </span>
-                </div>
-
-                <div className="ticket-meta">
-                  <span
-                  className={`status ${ticket.status}`}
-                >
-                  {ticket.status === "in_progress"
-                    ? "In Progress"
-                    : ticket.status}
+          <section className="page-section">
+            <div className="topbar">
+              <div>
+                <h1>Tickets</h1>
+                <p>Track and manage project issues.</p>
+                <span className="page-count">
+                  {tickets.length}{" "}
+                  {tickets.length === 1 ? "ticket" : "tickets"}
                 </span>
-
-                  <span
-                    className={`priority ${ticket.priority}`}
-                  >
-                    {ticket.priority}
-                  </span>
-                </div>
               </div>
-            ))}
-        </div>
-      )}
-    </div>
-  </section>
+              {projects.some(
+                (project) =>
+                  projectRoles[project.id] === "owner" ||
+                  projectRoles[project.id] === "developer"
+              ) && (
+                  <button
+                    className="small-button"
+                    onClick={() => setShowTicketForm(true)}
+                  >
+                    <Plus size={16} />
+                    New Ticket
+                  </button>
+                )}
+            </div>
+            <div className="panel">
+              <div className="ticket-search">
+                <input
+                  type="text"
+                  placeholder="Search tickets..."
+                  value={ticketSearch}
+                  onChange={(event) =>
+                    setTicketSearch(event.target.value)
+                  }
+                />
+
+                {ticketSearch && (
+                  <button
+                    className="clear-search"
+                    onClick={() => setTicketSearch("")}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {showTicketForm && (
+                <div className="ticket-form">
+                  <div className="panel-header">
+                    <div>
+                      <h2>New Ticket</h2>
+                      <p>Create a new issue for a project.</p>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+
+                      try {
+                        await axios.post(
+                          `${API_URL}/api/v1/tickets/`,
+                          {
+                            title: ticketTitle,
+                            description: ticketDescription,
+                            project_id: Number(ticketProjectId),
+                            status: ticketStatus,
+                            priority: ticketPriority,
+                          },
+                          {
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
+                          }
+                        );
+
+                        setTicketTitle("");
+                        setTicketDescription("");
+                        setTicketProjectId("");
+                        setTicketPriority("medium");
+                        setTicketStatus("open");
+                        setShowTicketForm(false);
+
+                        await loadDashboard();
+                      } catch (error) {
+                        alert(
+                          error.response?.data?.detail ||
+                          "Failed to create ticket."
+                        );
+                      }
+                    }}
+                  >
+                    <label>Ticket Title</label>
+
+                    <input
+                      type="text"
+                      placeholder="Enter ticket title"
+                      value={ticketTitle}
+                      onChange={(event) =>
+                        setTicketTitle(event.target.value)
+                      }
+                      required
+                    />
+
+                    <label>Project</label>
+
+                    <select
+                      value={ticketProjectId}
+                      onChange={(event) =>
+                        setTicketProjectId(event.target.value)
+                      }
+                      required
+                    >
+                      <option value="">Select a project</option>
+
+                      {projects.map((project) => (
+                        <option
+                          key={project.id}
+                          value={project.id}
+                        >
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label>Priority</label>
+
+                    <select
+                      value={ticketPriority}
+                      onChange={(event) =>
+                        setTicketPriority(event.target.value)
+                      }
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+
+                    <label>Status</label>
+
+                    <select
+                      value={ticketStatus}
+                      onChange={(event) =>
+                        setTicketStatus(event.target.value)
+                      }
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">
+                        In Progress
+                      </option>
+                      <option value="closed">Closed</option>
+                    </select>
+
+                    <label>Description</label>
+
+                    <textarea
+                      placeholder="Describe the issue"
+                      value={ticketDescription}
+                      onChange={(event) =>
+                        setTicketDescription(event.target.value)
+                      }
+                      rows="4"
+                    />
+
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setShowTicketForm(false)}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="submit"
+                        className="small-button"
+                      >
+                        Create Ticket
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {tickets.filter((ticket) =>
+                ticket.title
+                  .toLowerCase()
+                  .includes(ticketSearch.toLowerCase())
+              ).length === 0 ? (
+                <div className="empty-state">
+                  <Ticket size={30} />
+                  <p>
+                    {ticketSearch
+                      ? "No matching tickets."
+                      : "No tickets yet."}
+                  </p>
+                </div>
+              ) : (
+                <div className="ticket-list">
+                  {tickets
+                    .filter((ticket) =>
+                      ticket.title
+                        .toLowerCase()
+                        .includes(ticketSearch.toLowerCase())
+                    )
+                    .map((ticket) => (
+                      <div
+                        className="ticket-row"
+                        key={ticket.id}
+                      >
+                        <div>
+                          <strong>{ticket.title}</strong>
+                          <span>
+                            Project #{ticket.project_id}
+                          </span>
+                        </div>
+                        <div className="ticket-meta">
+                          <select
+                            className={`status status-select ${ticket.status}`}
+                            value={ticket.status}
+                            disabled={
+                              projectRoles[ticket.project_id] !== "owner" &&
+                              projectRoles[ticket.project_id] !== "developer"
+                            }
+                            onChange={(e) =>
+                              updateTicketStatus(ticket.id, e.target.value)
+                            }
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="closed">Closed</option>
+                          </select>
+
+                          <span
+                            className={`priority ${ticket.priority}`}
+                          >
+                            {ticket.priority}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </section>
         ) : (
           <>
             <header className="topbar">
@@ -743,13 +1025,13 @@ function App() {
                 <strong>{projects.length}</strong>
               </div>
               <div
-                  className="stat-card"
-                  onClick={() => setActivePage("tickets")}
-                >
-                  <Ticket size={20} />
-                  <span>Tickets</span>
-                  <strong>{tickets.length}</strong>
-                </div>
+                className="stat-card"
+                onClick={() => setActivePage("tickets")}
+              >
+                <Ticket size={20} />
+                <span>Tickets</span>
+                <strong>{tickets.length}</strong>
+              </div>
 
               <div className="stat-card">
                 <Activity size={22} />
@@ -772,7 +1054,7 @@ function App() {
                     <p>Your latest issue activity</p>
                   </div>
 
-                    <button
+                  <button
                     className="small-button"
                     onClick={() => {
                       setActivePage("tickets");
@@ -835,11 +1117,10 @@ function App() {
 
                 <div className="health-card">
                   <span
-                    className={`health-dot ${
-                      apiStatus === "Healthy"
-                        ? "healthy"
-                        : ""
-                    }`}
+                    className={`health-dot ${apiStatus === "Healthy"
+                      ? "healthy"
+                      : ""
+                      }`}
                   />
 
                   <div>

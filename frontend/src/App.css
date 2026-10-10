@@ -897,6 +897,65 @@ button {
   outline-offset: 2px;
 }
 
+
+/* Button polish */
+.small-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.small-button {
+  border: 1px solid transparent;
+  background: #6366f1;
+  color: #fff;
+}
+
+.small-button:hover:not(:disabled) {
+  background: #5558e8;
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  border: 1px solid #30303b;
+  background: transparent;
+  color: #cbd5e1;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: #6366f1;
+  background: #1c1c29;
+  color: #fff;
+}
+
+.small-button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 3px;
+}
+
+.small-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
 .stat-card {
   position: relative;
   overflow: hidden;
@@ -1345,4 +1404,270 @@ button {
 
 .stat-card:active {
   transform: translateY(0);
+}
+
+
+/* Project member rows */
+.member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 8px;
+  border-bottom: 1px solid var(--border-color, #292929);
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.member-info strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.member-info span {
+  color: var(--text-secondary, #9292a0);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.member-role {
+  color: var(--text-secondary, #9292a0);
+  font-size: 0.8rem;
+  min-width: 65px;
+  text-align: right;
+  text-transform: capitalize;
+}
+
+.member-role-select {
+  min-width: 125px;
+  padding: 9px 30px 9px 10px;
+  border: 1px solid #353545;
+  border-radius: 8px;
+  background: #191920;
+  color: #f3f3f7;
+  font: inherit;
+  cursor: pointer;
+}
+
+.member-remove-button {
+  padding: 9px 14px;
+  min-height: 38px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.member-row:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 650px) {
+  .member-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .member-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .member-role {
+    text-align: left;
+    min-width: auto;
+  }
+}
+
+
+
+.member-form {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.member-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.member-form-field label {
+  font-size: 0.9rem;
+}
+
+.member-form-field input,
+.member-form-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.member-form > button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+@media (max-width: 650px) {
+  .member-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Ticket status dropdown */
+.status-select {
+  appearance: none;
+  min-width: 145px;
+  padding: 10px 34px 10px 14px;
+  border: 1px solid #45455a;
+  border-radius: 999px;
+  background-color: #191920;
+  color: #f3f3f7;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.status-select.open {
+  color: #60a5fa;
+  background-color: #172338;
+}
+
+.status-select.in_progress {
+  color: #fbbf24;
+  background-color: #302713;
+}
+
+.status-select.closed {
+  color: #4ade80;
+  background-color: #162b20;
+}
+
+.status-select:hover:not(:disabled) {
+  border-color: #818cf8;
+}
+
+.status-select:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
+.status-select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.status-select option {
+  background: #191920;
+  color: #f3f3f7;
+}
+
+
+/* Final member form refinements */
+.member-form {
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.member-form-field label {
+  color: #a1a1aa;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.member-form-field input,
+.member-form-field select {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #353545;
+  border-radius: 8px;
+  background: #191920;
+  color: #f3f3f7;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.member-form-field input:focus,
+.member-form-field select:focus {
+  outline: 2px solid #818cf8;
+  outline-offset: 1px;
+}
+
+.member-form-field input::placeholder {
+  color: #71717a;
+}
+
+.member-form > button {
+  min-height: 42px;
+  padding: 10px 16px;
+}
+
+@media (max-width: 650px) {
+  .member-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Compact ticket list layout */
+.ticket-list {
+  gap: 0;
+}
+
+.ticket-row {
+  padding: 14px 8px;
+  gap: 16px;
+  align-items: center;
+}
+
+.ticket-row > div:first-child {
+  min-width: 0;
+}
+
+.ticket-row > div:first-child strong {
+  font-size: 0.95rem;
+}
+
+.ticket-row > div:first-child span {
+  font-size: 0.85rem;
+}
+
+.ticket-meta {
+  gap: 10px;
+}
+
+.status-select {
+  min-width: 140px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+@media (max-width: 650px) {
+  .ticket-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ticket-meta {
+    width: 100%;
+  }
 }
