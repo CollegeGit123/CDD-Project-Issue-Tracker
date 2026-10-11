@@ -607,3 +607,5 @@ By combining FastAPI, React, PostgreSQL, Docker, GitHub Actions, and AWS service
 ## Author
 
 Developed as an academic project for the Cloud Architecture and DevOps coursework.
+
+## Pipeline Demo
