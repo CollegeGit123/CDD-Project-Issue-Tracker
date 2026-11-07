@@ -92,6 +92,7 @@ CDD-Project-Issue-Tracker/
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
+```
 
 ## Prerequisites
 
